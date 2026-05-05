@@ -1,0 +1,5 @@
+{
+  "name": "Text Translator",
+  "description": "A simple text translation system using Gemini AI.",
+  "requestFramePermissions": []
+}
