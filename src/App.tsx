@@ -21,14 +21,15 @@ const languages = [
 
 export default function App() {
   const [inputText, setInputText] = useState('');
-  const [sourceLanguage, setSourceLanguage] = useState('pt'); // Default to Portuguese
-  const [targetLanguage, setTargetLanguage] = useState('en'); // Default to English
+  const [sourceLanguage, setSourceLanguage] = useState('en');
+  const [targetLanguage, setTargetLanguage] = useState('pt');
   const [translatedText, setTranslatedText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'translator' | 'pdfGenerator'>('translator');
 
-  const CHUNK_SIZE = 30000; // Aumentado de 1500 para 30000 para reduzir o número de chamadas à API
+  // 4000 chars por chunk é seguro: cabe dentro do limite de saída do Gemini (8192 tokens)
+  const CHUNK_SIZE = 4000;
 
   const handleTranslate = async () => {
     setLoading(true);
@@ -39,61 +40,65 @@ export default function App() {
 
     try {
       const apiKey = process.env.GEMINI_API_KEY;
-      
+
       if (!apiKey || apiKey === 'undefined' || apiKey === 'MY_GEMINI_API_KEY') {
         throw new Error('A chave de API do Gemini não foi detectada. Certifique-se de que a variável GEMINI_API_KEY está configurada no painel de Secrets/Settings.');
       }
 
-      const genAI = new GoogleGenAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
+      const genAI = new GoogleGenAI({ apiKey });
+
       const sourceLangName = languages.find(lang => lang.code === sourceLanguage)?.name;
       const targetLangName = languages.find(lang => lang.code === targetLanguage)?.name;
-
-      let fullTranslatedText = '';
 
       if (!inputText.trim()) {
         throw new Error('Por favor, digite um texto para traduzir.');
       }
 
-      // Divide o texto de entrada em chunks
       const textChunks: string[] = [];
-      if (inputText.length === 0) {
-          throw new Error('Texto de entrada vazio.');
-      }
-      
       for (let i = 0; i < inputText.length; i += CHUNK_SIZE) {
         textChunks.push(inputText.substring(i, i + CHUNK_SIZE));
       }
 
+      let fullTranslatedText = '';
+
       for (let i = 0; i < textChunks.length; i++) {
         const chunk = textChunks[i];
-        const prompt = `Traduza o seguinte texto de ${sourceLangName} para ${targetLangName}. Forneça apenas a tradução direta, sem qualquer explicação, variação ou formatação adicional:
-\n"""\n${chunk}\n"""`;
+        const prompt = `Traduza o seguinte texto de ${sourceLangName} para ${targetLangName}. Forneça apenas a tradução direta, sem qualquer explicação, variação ou formatação adicional:\n"""\n${chunk}\n"""`;
 
-        let success = false;
         let retries = 0;
         const maxRetries = 3;
+        let chunkDone = false;
 
-        while (!success && retries < maxRetries) {
+        while (!chunkDone && retries < maxRetries) {
           try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+            // Streaming: exibe a tradução em tempo real conforme chega
+            const stream = await genAI.models.generateContentStream({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              config: {
+                thinkingConfig: { thinkingBudget: 0 },
+                maxOutputTokens: 8192,
+              },
+            });
 
-            if (text) {
-              fullTranslatedText += text + ' ';
-              success = true;
-            } else {
-              throw new Error('Nenhuma tradução encontrada para um dos chunks.');
+            let chunkText = '';
+            for await (const piece of stream) {
+              chunkText += piece.text ?? '';
+              setTranslatedText(fullTranslatedText + chunkText);
             }
+
+            if (fullTranslatedText && !fullTranslatedText.endsWith('\n')) {
+              fullTranslatedText += ' ';
+            }
+            fullTranslatedText += chunkText.trim();
+            setTranslatedText(fullTranslatedText);
+            chunkDone = true;
           } catch (err: any) {
             const errorMsg = String(err);
             if (errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
               retries++;
               if (retries < maxRetries) {
-                // Espera progressiva: 5s, 10s, 15s
-                await sleep(5000 * retries);
+                await sleep(15000 * retries);
                 continue;
               }
             }
@@ -101,9 +106,8 @@ export default function App() {
           }
         }
 
-        // Pequena pausa entre chunks para evitar rate limiting preventivamente
         if (i < textChunks.length - 1) {
-          await sleep(500);
+          await sleep(300);
         }
       }
 
@@ -112,7 +116,7 @@ export default function App() {
       console.error('Translation error:', err);
       const errorMsg = String(err);
       if (errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
-        setError('Limite de uso da API atingido. Por favor, aguarde cerca de 30 segundos e tente novamente.');
+        setError(`Limite de uso da API atingido. Detalhes: ${err instanceof Error ? err.message : errorMsg}`);
       } else {
         setError(`Falha ao traduzir o texto. Detalhes: ${err instanceof Error ? err.message : errorMsg}`);
       }
@@ -208,7 +212,8 @@ export default function App() {
                 <label htmlFor="translatedText" className="block text-blue-200 text-sm font-semibold mb-2">Texto Traduzido:</label>
                 <textarea
                   id="translatedText"
-                  className="shadow-inner appearance-none border border-blue-700 rounded-lg w-full py-3 px-4 text-white bg-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 h-40 resize-none"
+                  className="shadow-inner appearance-none border border-blue-700 rounded-lg w-full py-3 px-4 text-white bg-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  style={{ minHeight: '200px', height: `${Math.max(200, Math.min(600, translatedText.split('\n').length * 24 + 48))}px` }}
                   value={translatedText}
                   readOnly
                 ></textarea>

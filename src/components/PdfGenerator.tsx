@@ -15,6 +15,7 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
   const [alignment, setAlignment] = useState('justify');
   const [wordsPerLine, setWordsPerLine] = useState(16);
   const [linesPerParagraph, setLinesPerParagraph] = useState(10);
+  const [date, setDate] = useState('');
 
   useEffect(() => {
     setPdfText(initialText);
@@ -57,7 +58,19 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     doc.setDrawColor(0, 51, 102); // Azul escuro clássico
     doc.setLineWidth(0.8);
     doc.line(70, y - 2, 140, y - 2);
-    y += 15;
+    y += 8;
+
+    // Data abaixo do título (mesmo tamanho do texto)
+    if (date) {
+      doc.setFontSize(fontSize);
+      doc.setFont(fontFamily, 'normal');
+      doc.setTextColor(80, 80, 80);
+      doc.text(date, 105, y, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      y += (fontSize * 1.5) / doc.internal.scaleFactor + 4;
+    } else {
+      y += 7;
+    }
 
     doc.setFontSize(fontSize);
     doc.setFont(fontFamily, 'normal');
@@ -151,6 +164,17 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
             className="shadow-inner appearance-none border border-blue-700 rounded-lg w-full py-3 px-4 text-white bg-gray-600 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        <div>
+          <label htmlFor="date" className="block text-blue-200 text-sm font-semibold mb-2">Data <span className="font-normal text-blue-300">(aparece abaixo do título)</span>:</label>
+          <input
+            type="text"
+            id="date"
+            className="shadow-inner appearance-none border border-blue-700 rounded-lg w-full py-3 px-4 text-white bg-gray-600 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+            placeholder="Ex: 04 de maio de 2025"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
           />
         </div>
         <div>
