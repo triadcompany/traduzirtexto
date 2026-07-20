@@ -29,6 +29,8 @@ app.post('/api/translate', async (req, res) => {
   const prompt = `Traduza o texto a seguir de ${sourceLanguage} para ${targetLanguage}.
 
 Regras obrigatórias:
+- Traduza o texto INTEIRO, do início ao fim, mesmo que pareça repetitivo, incompleto ou fora de contexto (é um trecho de um texto maior).
+- Nunca devolva nenhuma frase ou trecho no idioma original — se alguma parte já parecer estar em ${targetLanguage}, ainda assim revise e devolva a tradução completa.
 - Forneça apenas a tradução direta, sem explicações, comentários ou texto extra.
 - Preserve fielmente a pontuação original (vírgulas, pontos, interrogações, travessões, reticências).
 - Se houver marcadores "***" no texto, copie-os exatamente como estão, sem traduzir, remover ou substituir por aspas ou qualquer outro símbolo.

@@ -27,8 +27,24 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'translator' | 'pdfGenerator'>('translator');
 
-  // 4000 chars por chunk é seguro: cabe dentro do limite de saída do Gemini (8192 tokens)
+  // 4000 chars por chunk é seguro: cabe dentro do limite de saída do modelo
   const CHUNK_SIZE = 4000;
+
+  // Divide o texto em blocos sem cortar no meio de uma palavra, o que confunde a tradução
+  const splitIntoChunks = (text: string, maxSize: number): string[] => {
+    const chunks: string[] = [];
+    let remaining = text;
+    while (remaining.length > maxSize) {
+      let splitIndex = remaining.lastIndexOf(' ', maxSize);
+      if (splitIndex <= 0) splitIndex = maxSize;
+      chunks.push(remaining.slice(0, splitIndex));
+      remaining = remaining.slice(splitIndex).trimStart();
+    }
+    if (remaining) chunks.push(remaining);
+    return chunks;
+  };
+
+  const normalize = (text: string) => text.trim().replace(/\s+/g, ' ').toLowerCase();
 
   const handleTranslate = async () => {
     setLoading(true);
@@ -45,10 +61,7 @@ export default function App() {
         throw new Error('Por favor, digite um texto para traduzir.');
       }
 
-      const textChunks: string[] = [];
-      for (let i = 0; i < inputText.length; i += CHUNK_SIZE) {
-        textChunks.push(inputText.substring(i, i + CHUNK_SIZE));
-      }
+      const textChunks = splitIntoChunks(inputText, CHUNK_SIZE);
 
       let fullTranslatedText = '';
 
@@ -92,6 +105,17 @@ export default function App() {
               if (done) break;
               chunkText += decoder.decode(value, { stream: true });
               setTranslatedText(fullTranslatedText + chunkText);
+            }
+          }
+
+          // Às vezes o modelo devolve o texto original sem traduzir; detecta e tenta de novo
+          const isPassthrough = sourceLanguage !== targetLanguage && normalize(chunkText) === normalize(chunk);
+          if (isPassthrough) {
+            retries++;
+            if (retries < maxRetries) {
+              setTranslatedText(fullTranslatedText);
+              await sleep(1000);
+              continue;
             }
           }
 
