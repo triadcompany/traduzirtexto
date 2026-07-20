@@ -33,7 +33,7 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
   const [wordsPerLine, setWordsPerLine] = useState(16);
   const [linesPerParagraph, setLinesPerParagraph] = useState(10);
   const [date, setDate] = useState('');
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState('Abel Country, Longdenville, Trinidad and Tobago');
 
   useEffect(() => {
     setPdfText(initialText);
