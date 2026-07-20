@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import PdfGenerator from './components/PdfGenerator';
 
 const languages = [
@@ -39,14 +38,6 @@ export default function App() {
     const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-
-      if (!apiKey || apiKey === 'undefined' || apiKey === 'MY_GEMINI_API_KEY') {
-        throw new Error('A chave de API do Gemini não foi detectada. Certifique-se de que a variável GEMINI_API_KEY está configurada no painel de Secrets/Settings.');
-      }
-
-      const genAI = new GoogleGenAI({ apiKey });
-
       const sourceLangName = languages.find(lang => lang.code === sourceLanguage)?.name;
       const targetLangName = languages.find(lang => lang.code === targetLanguage)?.name;
 
@@ -63,47 +54,53 @@ export default function App() {
 
       for (let i = 0; i < textChunks.length; i++) {
         const chunk = textChunks[i];
-        const prompt = `Traduza o seguinte texto de ${sourceLangName} para ${targetLangName}. Forneça apenas a tradução direta, sem qualquer explicação, variação ou formatação adicional:\n"""\n${chunk}\n"""`;
 
         let retries = 0;
         const maxRetries = 3;
         let chunkDone = false;
 
         while (!chunkDone && retries < maxRetries) {
-          try {
-            // Streaming: exibe a tradução em tempo real conforme chega
-            const stream = await genAI.models.generateContentStream({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
-              config: {
-                thinkingConfig: { thinkingBudget: 0 },
-                maxOutputTokens: 8192,
-              },
-            });
+          const response = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: chunk,
+              sourceLanguage: sourceLangName,
+              targetLanguage: targetLangName,
+            }),
+          });
 
-            let chunkText = '';
-            for await (const piece of stream) {
-              chunkText += piece.text ?? '';
-              setTranslatedText(fullTranslatedText + chunkText);
-            }
-
-            if (fullTranslatedText && !fullTranslatedText.endsWith('\n')) {
-              fullTranslatedText += ' ';
-            }
-            fullTranslatedText += chunkText.trim();
-            setTranslatedText(fullTranslatedText);
-            chunkDone = true;
-          } catch (err: any) {
-            const errorMsg = String(err);
-            if (errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+          if (!response.ok) {
+            if (response.status === 429) {
               retries++;
               if (retries < maxRetries) {
                 await sleep(15000 * retries);
                 continue;
               }
             }
-            throw err;
+            const errorBody = await response.json().catch(() => null);
+            throw new Error(errorBody?.error || `Falha ao traduzir (HTTP ${response.status}).`);
           }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let chunkText = '';
+
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunkText += decoder.decode(value, { stream: true });
+              setTranslatedText(fullTranslatedText + chunkText);
+            }
+          }
+
+          if (fullTranslatedText && !fullTranslatedText.endsWith('\n')) {
+            fullTranslatedText += ' ';
+          }
+          fullTranslatedText += chunkText.trim();
+          setTranslatedText(fullTranslatedText);
+          chunkDone = true;
         }
 
         if (i < textChunks.length - 1) {
