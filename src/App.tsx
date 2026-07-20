@@ -207,13 +207,14 @@ export default function App() {
               {loading ? 'Traduzindo...' : 'Traduzir'}
             </button>
 
-            {translatedText && (
+            {(translatedText || loading) && (
               <div className="mt-8">
                 <label htmlFor="translatedText" className="block text-blue-200 text-sm font-semibold mb-2">Texto Traduzido:</label>
                 <textarea
                   id="translatedText"
                   className="shadow-inner appearance-none border border-blue-700 rounded-lg w-full py-3 px-4 text-white bg-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                   style={{ minHeight: '200px', height: `${Math.max(200, Math.min(600, translatedText.split('\n').length * 24 + 48))}px` }}
+                  placeholder="A tradução aparecerá aqui em tempo real..."
                   value={translatedText}
                   readOnly
                 ></textarea>
