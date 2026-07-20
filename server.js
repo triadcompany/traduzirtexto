@@ -26,7 +26,18 @@ app.post('/api/translate', async (req, res) => {
     return res.status(400).json({ error: 'Texto vazio.' });
   }
 
-  const prompt = `Traduza o texto a seguir de ${sourceLanguage} para ${targetLanguage}. Forneça apenas a tradução direta, sem qualquer explicação, variação ou formatação adicional:\n"""\n${text}\n"""`;
+  const prompt = `Traduza o texto a seguir de ${sourceLanguage} para ${targetLanguage}.
+
+Regras obrigatórias:
+- Forneça apenas a tradução direta, sem explicações, comentários ou texto extra.
+- Preserve fielmente a pontuação original (vírgulas, pontos, interrogações, travessões, reticências).
+- Se houver marcadores "***" no texto, copie-os exatamente como estão, sem traduzir, remover ou substituir por aspas ou qualquer outro símbolo.
+- Não inclua as tags <texto> na resposta, apenas a tradução.
+
+Texto a traduzir:
+<texto>
+${text}
+</texto>`;
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
