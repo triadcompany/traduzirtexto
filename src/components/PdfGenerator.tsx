@@ -5,6 +5,23 @@ interface PdfGeneratorProps {
   initialText: string;
 }
 
+const MONTHS_PT: Record<string, string> = {
+  janeiro: '01', fevereiro: '02', março: '03', marco: '03', abril: '04',
+  maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09',
+  outubro: '10', novembro: '11', dezembro: '12',
+};
+
+const formatDateForFilename = (rawDate: string): string => {
+  const match = rawDate.trim().match(/(\d{1,2})\s*(?:de)?\s*([a-zçãéíóúõê]+)\s*(?:de)?\s*(\d{4})/i);
+  if (!match) return '';
+  const [, day, monthName, year] = match;
+  const month = MONTHS_PT[monthName.toLowerCase()];
+  if (!month) return '';
+  return `${day.padStart(2, '0')}-${month}-${year}`;
+};
+
+const sanitizeFilename = (name: string): string => name.replace(/[\\/:*?"<>|]/g, '').trim();
+
 const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
   const [pdfText, setPdfText] = useState(initialText);
   const [title, setTitle] = useState('Documento Traduzido');
@@ -135,7 +152,9 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
         addPageDecorations(i, totalPages);
     }
 
-    doc.save('documento_traduzido.pdf');
+    const formattedDate = formatDateForFilename(date);
+    const filenameBase = sanitizeFilename(formattedDate ? `${formattedDate} - ${title}` : title || 'documento_traduzido');
+    doc.save(`${filenameBase}.pdf`);
   };
 
   return (
