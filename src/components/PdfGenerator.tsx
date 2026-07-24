@@ -155,7 +155,7 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     }
 
     const formattedDate = formatDateForFilename(date);
-    const filenameParts = [formattedDate, title || 'documento_traduzido', location].filter(Boolean);
+    const filenameParts = [formattedDate, title || 'documento_traduzido'].filter(Boolean);
     const filenameBase = sanitizeFilename(filenameParts.join(' - '));
     doc.save(`${filenameBase}.pdf`);
   };
