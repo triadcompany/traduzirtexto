@@ -104,9 +104,11 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     const REF_COMPACT = `${BIBLE_BOOKS}\\s*(?:${CHAPTER_WORD}\\s+)?\\d+\\s*[:.,]\\s*\\d+(?:-\\d+)?`;
     const REF_FORWARD = `${BIBLE_BOOKS}\\s+(?:${CHAPTER_WORD}\\s+)?\\d+\\s*[,.]?\\s*${VERSE_WORD}\\s*\\.?\\s*\\d+(?:-\\d+)?`;
     const REF_REVERSED = `${CHAPTER_WORD}\\s+\\d+\\s+de\\s+${BIBLE_BOOKS}\\s*[,.]?\\s*(?:${VERSE_WORD}\\s*\\.?\\s*)?\\d+(?:-\\d+)?`;
+    // | "Êxodo 12" (só livro + capítulo, sem versículo nenhum)
+    const REF_BARE = `${BIBLE_BOOKS}\\s+(?:${CHAPTER_WORD}\\s+)?\\d+`;
     // Ancorada no fim da string testada: só reconhece quando a citação acabou de se completar,
     // e permite pontuação sobrando depois do último número (ex: "Verso 8.")
-    const tailBibleRegex = new RegExp(`(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT})[.,]?$`, 'i');
+    const tailBibleRegex = new RegExp(`(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT}|${REF_BARE})[.,]?$`, 'i');
 
     const fullText = pdfText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const words = fullText.split(' ');
