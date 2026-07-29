@@ -100,26 +100,51 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     const CHAPTER_WORD = '(?:cap(?:í|i)tulo|cap\\.)';
     const VERSE_WORD = '(?:vers(?:í|i)culo|verso|v\\.)';
     // Formas cobertas: "Gênesis 10:5" | "Gênesis capítulo 10 verso 5" | "capítulo 10 de Gênesis, verso 5"
-    const REF_COMPACT = `${BIBLE_BOOKS}\\s*\\d+[:.,]\\d+(?:-\\d+)?`;
+    // | "Gênesis capítulo 3. 16." (número do versículo sem a palavra "verso")
+    const REF_COMPACT = `${BIBLE_BOOKS}\\s*(?:${CHAPTER_WORD}\\s+)?\\d+\\s*[:.,]\\s*\\d+(?:-\\d+)?`;
     const REF_FORWARD = `${BIBLE_BOOKS}\\s+(?:${CHAPTER_WORD}\\s+)?\\d+\\s*[,.]?\\s*${VERSE_WORD}\\s*\\.?\\s*\\d+(?:-\\d+)?`;
     const REF_REVERSED = `${CHAPTER_WORD}\\s+\\d+\\s+de\\s+${BIBLE_BOOKS}\\s*[,.]?\\s*(?:${VERSE_WORD}\\s*\\.?\\s*)?\\d+(?:-\\d+)?`;
-    const bibleRegex = new RegExp(`\\b(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT})\\b`, 'i');
+    // Ancorada no fim da string testada: só reconhece quando a citação acabou de se completar,
+    // e permite pontuação sobrando depois do último número (ex: "Verso 8.")
+    const tailBibleRegex = new RegExp(`(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT})[.,]?$`, 'i');
 
     const fullText = pdfText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const words = fullText.split(' ');
 
-    let currentLine = '';
+    type Segment = { word: string; isBible: boolean };
+    let currentLineSegments: Segment[] = [];
+    let currentLineWidth = 0;
     let linesSinceParagraphStart = 0;
     let isInsideBibleBlock = false;
     // Uma palavra termina a frase, não a linha (a quebra por largura raramente coincide com o fim da frase)
     const endsSentence = (word: string) => /[.!?][”"'’)\]]*$/.test(word);
 
-    const flushLine = (lineText: string, isParaEnd: boolean) => {
+    const setStyle = (isBible: boolean) => doc.setFont(fontFamily, isBible ? 'bolditalic' : 'normal');
+    setStyle(false);
+    const spaceWidth = doc.getTextWidth(' ');
+
+    // Renderiza cada palavra individualmente (com sua própria fonte), em vez da linha
+    // inteira de uma vez só — do contrário, toda a linha herdava a última fonte ativa.
+    const flushLine = (segments: Segment[], isParaEnd: boolean) => {
       const curAlign = (alignment === 'justify' && !isParaEnd) ? 'justify' : (alignment === 'justify' ? 'left' : alignment);
 
-      doc.text(lineText, margin, y, {
-        align: curAlign as any,
-        maxWidth: curAlign === 'justify' ? maxWidth : undefined
+      let lineWidth = 0;
+      segments.forEach((seg, i) => {
+        setStyle(seg.isBible);
+        lineWidth += doc.getTextWidth(seg.word);
+        if (i < segments.length - 1) lineWidth += spaceWidth;
+      });
+
+      let x = margin;
+      let gapExtra = 0;
+      if (curAlign === 'center') x = margin + (maxWidth - lineWidth) / 2;
+      else if (curAlign === 'right') x = margin + (maxWidth - lineWidth);
+      else if (curAlign === 'justify' && segments.length > 1) gapExtra = (maxWidth - lineWidth) / (segments.length - 1);
+
+      segments.forEach((seg, i) => {
+        setStyle(seg.isBible);
+        doc.text(seg.word, x, y);
+        x += doc.getTextWidth(seg.word) + (i < segments.length - 1 ? spaceWidth + gapExtra : 0);
       });
 
       y += (fontSize * lineSpacing) / doc.internal.scaleFactor;
@@ -142,29 +167,44 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
         word = word.replace(/\*\*\*/g, '');
       }
 
-      const hasBibleRef = bibleRegex.test(word) || bibleRegex.test(currentLine + ' ' + word);
-      const isBibleStyle = hasBibleRef || isInsideBibleBlock;
-      doc.setFont(fontFamily, isBibleStyle ? 'bolditalic' : 'normal');
+      const lineTextSoFar = currentLineSegments.map(s => s.word).join(' ');
+      const testText = lineTextSoFar + (lineTextSoFar ? ' ' : '') + word;
 
-      const testLine = currentLine + (currentLine ? ' ' : '') + word;
-      const testLineWidth = doc.getTextWidth(testLine);
+      let isBible = isInsideBibleBlock;
+      const match = testText.match(tailBibleRegex);
+      if (match) {
+        isBible = true;
+        // Marca retroativamente as palavras anteriores que fazem parte desta mesma citação
+        const matchedWordCount = match[0].trim().split(/\s+/).length;
+        for (let k = 1; k < matchedWordCount; k++) {
+          const idx = currentLineSegments.length - k;
+          if (idx >= 0) currentLineSegments[idx].isBible = true;
+        }
+      }
 
-      if (testLineWidth > maxWidth && currentLine !== '') {
-        flushLine(currentLine, false);
-        currentLine = word;
+      setStyle(isBible);
+      const wordWidth = doc.getTextWidth(word);
+      const addedWidth = (currentLineSegments.length > 0 ? spaceWidth : 0) + wordWidth;
+
+      if (currentLineWidth + addedWidth > maxWidth && currentLineSegments.length > 0) {
+        flushLine(currentLineSegments, false);
+        currentLineSegments = [{ word, isBible }];
+        currentLineWidth = wordWidth;
       } else {
-        currentLine = testLine;
+        currentLineSegments.push({ word, isBible });
+        currentLineWidth += addedWidth;
       }
 
       const isLastWord = index === words.length - 1;
       const reachedMinLines = linesSinceParagraphStart + 1 >= linesPerParagraph;
 
       if (isLastWord) {
-        flushLine(currentLine, true);
+        flushLine(currentLineSegments, true);
       } else if (endsSentence(word) && reachedMinLines) {
         // Força a quebra logo após a frase terminar, mesmo no meio da largura da linha
-        flushLine(currentLine, true);
-        currentLine = '';
+        flushLine(currentLineSegments, true);
+        currentLineSegments = [];
+        currentLineWidth = 0;
       }
     });
 
