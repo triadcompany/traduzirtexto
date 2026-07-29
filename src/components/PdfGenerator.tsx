@@ -100,12 +100,34 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
 
     const fullText = pdfText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const words = fullText.split(' ');
-    
+
     let currentLine = '';
     let linesSinceParagraphStart = 0;
     let isInsideBibleBlock = false;
-    // Só quebra parágrafo no fim de uma frase, nunca no meio
-    const endsSentence = (line: string) => /[.!?][”"'’)\]]*$/.test(line.trim());
+    // Uma palavra termina a frase, não a linha (a quebra por largura raramente coincide com o fim da frase)
+    const endsSentence = (word: string) => /[.!?][”"'’)\]]*$/.test(word);
+
+    const flushLine = (lineText: string, isParaEnd: boolean) => {
+      const curAlign = (alignment === 'justify' && !isParaEnd) ? 'justify' : (alignment === 'justify' ? 'left' : alignment);
+
+      doc.text(lineText, margin, y, {
+        align: curAlign as any,
+        maxWidth: curAlign === 'justify' ? maxWidth : undefined
+      });
+
+      y += (fontSize * lineSpacing) / doc.internal.scaleFactor;
+      linesSinceParagraphStart++;
+
+      if (isParaEnd) {
+        y += paragraphSpacing / doc.internal.scaleFactor;
+        linesSinceParagraphStart = 0;
+      }
+
+      if (y > 275) { // Evita sobrepor o rodapé
+        doc.addPage();
+        y = 30;
+      }
+    };
 
     words.forEach((word, index) => {
       if (word.includes('***')) {
@@ -121,34 +143,21 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
       const testLineWidth = doc.getTextWidth(testLine);
 
       if (testLineWidth > maxWidth && currentLine !== '') {
-        const isLastLineOfPara = linesSinceParagraphStart + 1 >= linesPerParagraph && endsSentence(currentLine);
-        const curAlign = (alignment === 'justify' && !isLastLineOfPara) ? 'justify' : (alignment === 'justify' ? 'left' : alignment);
-
-        doc.text(currentLine, margin, y, {
-          align: curAlign as any,
-          maxWidth: curAlign === 'justify' ? maxWidth : undefined
-        });
-
-        y += (fontSize * lineSpacing) / doc.internal.scaleFactor;
-        linesSinceParagraphStart++;
-
-        if (isLastLineOfPara) {
-          y += paragraphSpacing / doc.internal.scaleFactor;
-          linesSinceParagraphStart = 0;
-        }
-
-        if (y > 275) { // Evita sobrepor o rodapé
-          doc.addPage();
-          y = 30;
-        }
-
+        flushLine(currentLine, false);
         currentLine = word;
       } else {
         currentLine = testLine;
       }
 
-      if (index === words.length - 1) {
-        doc.text(currentLine, margin, y, { align: 'left' });
+      const isLastWord = index === words.length - 1;
+      const reachedMinLines = linesSinceParagraphStart + 1 >= linesPerParagraph;
+
+      if (isLastWord) {
+        flushLine(currentLine, true);
+      } else if (endsSentence(word) && reachedMinLines) {
+        // Força a quebra logo após a frase terminar, mesmo no meio da largura da linha
+        flushLine(currentLine, true);
+        currentLine = '';
       }
     });
 
