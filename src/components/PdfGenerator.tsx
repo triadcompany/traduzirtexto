@@ -95,7 +95,8 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     doc.setFont(fontFamily, 'normal');
 
     // Regex melhorada: suporte a livros com números (1 João), abreviações e intervalos de versículos
-    const BIBLE_BOOKS = '(?:[123]\\s?)?(?:Gen|Exo|Lev|Num|Deu|Jos|Judg|Ruth|Sam|Kings|Chron|Ezra|Neh|Esth|Job|Psa|Prov|Eccl|Song|Isa|Jer|Lam|Eze|Dan|Hos|Joel|Amos|Oba|Jon|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phi|Col|Thess|Tim|Tit|Phile|Heb|James|Pet|Jude|Rev|Gên|Êxo|Lev|Núm|Deu|Jos|Juí|Rut|Sam|Reis|Crô|Esd|Nee|Est|Jó|Sal|Pro|Ecl|Cân|Isa|Jer|Lam|Eze|Dan|Osé|Joe|Amó|Oba|Jon|Miq|Nau|Hab|Sof|Age|Zac|Mal|Mat|Mar|Luc|João|Ato|Rom|Cor|Gál|Efi|Fil|Col|Tes|Tim|Tit|Fil|Heb|Tia|Ped|Jud|Apo)[a-z]*';
+    // [a-záàâãéêíóôõúüç]* completa o nome do livro, incluindo acentos (ex: "Jos" -> "Josué", "Deu" -> "Deuteronômio")
+    const BIBLE_BOOKS = '(?:[123]\\s?)?(?:Gen|Exo|Lev|Num|Deu|Jos|Judg|Ruth|Sam|Kings|Chron|Ezra|Neh|Esth|Job|Psa|Prov|Eccl|Song|Isa|Jer|Lam|Eze|Dan|Hos|Joel|Amos|Oba|Jon|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phi|Col|Thess|Tim|Tit|Phile|Heb|James|Pet|Jude|Rev|Gên|Êxo|Lev|Núm|Deu|Jos|Juí|Rut|Sam|Reis|Crô|Esd|Nee|Est|Jó|Sal|Pro|Ecl|Cân|Isa|Jer|Lam|Eze|Dan|Osé|Joe|Amó|Oba|Jon|Miq|Nau|Hab|Sof|Age|Zac|Mal|Mat|Mar|Luc|João|Ato|Rom|Cor|Gál|Efi|Fil|Col|Tes|Tim|Tit|Fil|Heb|Tia|Ped|Jud|Apo)[a-záàâãéêíóôõúüç]*';
     // Palavras usadas em citações por extenso: "capítulo"/"cap." e "versículo"/"verso"/"v."
     const CHAPTER_WORD = '(?:cap(?:í|i)tulo|cap\\.)';
     const VERSE_WORD = '(?:vers(?:í|i)culo|verso|v\\.)';
@@ -107,8 +108,8 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     // | "Êxodo 12" (só livro + capítulo, sem versículo nenhum)
     const REF_BARE = `${BIBLE_BOOKS}\\s+(?:${CHAPTER_WORD}\\s+)?\\d+`;
     // Ancorada no fim da string testada: só reconhece quando a citação acabou de se completar,
-    // e permite pontuação sobrando depois do último número (ex: "Verso 8.")
-    const tailBibleRegex = new RegExp(`(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT}|${REF_BARE})[.,]?$`, 'i');
+    // e permite pontuação/aspas sobrando depois do último número (ex: "Verso 8.", "3:21?")
+    const tailBibleRegex = new RegExp(`(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT}|${REF_BARE})[.,;:!?"'’)\\]]*$`, 'i');
 
     const fullText = pdfText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const words = fullText.split(' ');
