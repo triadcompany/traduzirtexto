@@ -96,7 +96,14 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
 
     // Regex melhorada: suporte a livros com números (1 João), abreviações e intervalos de versículos
     const BIBLE_BOOKS = '(?:[123]\\s?)?(?:Gen|Exo|Lev|Num|Deu|Jos|Judg|Ruth|Sam|Kings|Chron|Ezra|Neh|Esth|Job|Psa|Prov|Eccl|Song|Isa|Jer|Lam|Eze|Dan|Hos|Joel|Amos|Oba|Jon|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phi|Col|Thess|Tim|Tit|Phile|Heb|James|Pet|Jude|Rev|Gên|Êxo|Lev|Núm|Deu|Jos|Juí|Rut|Sam|Reis|Crô|Esd|Nee|Est|Jó|Sal|Pro|Ecl|Cân|Isa|Jer|Lam|Eze|Dan|Osé|Joe|Amó|Oba|Jon|Miq|Nau|Hab|Sof|Age|Zac|Mal|Mat|Mar|Luc|João|Ato|Rom|Cor|Gál|Efi|Fil|Col|Tes|Tim|Tit|Fil|Heb|Tia|Ped|Jud|Apo)[a-z]*';
-    const bibleRegex = new RegExp(`\\b${BIBLE_BOOKS}\\s\\d+[:.,]\\d+(?:-\\d+)?\\b`, 'i');
+    // Palavras usadas em citações por extenso: "capítulo"/"cap." e "versículo"/"verso"/"v."
+    const CHAPTER_WORD = '(?:cap(?:í|i)tulo|cap\\.)';
+    const VERSE_WORD = '(?:vers(?:í|i)culo|verso|v\\.)';
+    // Formas cobertas: "Gênesis 10:5" | "Gênesis capítulo 10 verso 5" | "capítulo 10 de Gênesis, verso 5"
+    const REF_COMPACT = `${BIBLE_BOOKS}\\s*\\d+[:.,]\\d+(?:-\\d+)?`;
+    const REF_FORWARD = `${BIBLE_BOOKS}\\s+(?:${CHAPTER_WORD}\\s+)?\\d+\\s*[,.]?\\s*${VERSE_WORD}\\s*\\.?\\s*\\d+(?:-\\d+)?`;
+    const REF_REVERSED = `${CHAPTER_WORD}\\s+\\d+\\s+de\\s+${BIBLE_BOOKS}\\s*[,.]?\\s*(?:${VERSE_WORD}\\s*\\.?\\s*)?\\d+(?:-\\d+)?`;
+    const bibleRegex = new RegExp(`\\b(?:${REF_FORWARD}|${REF_REVERSED}|${REF_COMPACT})\\b`, 'i');
 
     const fullText = pdfText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const words = fullText.split(' ');
