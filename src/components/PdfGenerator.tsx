@@ -102,8 +102,10 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
     const words = fullText.split(' ');
     
     let currentLine = '';
-    let globalLineIndex = 0;
+    let linesSinceParagraphStart = 0;
     let isInsideBibleBlock = false;
+    // Só quebra parágrafo no fim de uma frase, nunca no meio
+    const endsSentence = (line: string) => /[.!?][”"'’)\]]*$/.test(line.trim());
 
     words.forEach((word, index) => {
       if (word.includes('***')) {
@@ -119,19 +121,20 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
       const testLineWidth = doc.getTextWidth(testLine);
 
       if (testLineWidth > maxWidth && currentLine !== '') {
-        const isLastLineOfPara = ((globalLineIndex + 1) % linesPerParagraph === 0);
+        const isLastLineOfPara = linesSinceParagraphStart + 1 >= linesPerParagraph && endsSentence(currentLine);
         const curAlign = (alignment === 'justify' && !isLastLineOfPara) ? 'justify' : (alignment === 'justify' ? 'left' : alignment);
-        
-        doc.text(currentLine, margin, y, { 
+
+        doc.text(currentLine, margin, y, {
           align: curAlign as any,
           maxWidth: curAlign === 'justify' ? maxWidth : undefined
         });
 
         y += (fontSize * lineSpacing) / doc.internal.scaleFactor;
-        globalLineIndex++;
+        linesSinceParagraphStart++;
 
         if (isLastLineOfPara) {
           y += paragraphSpacing / doc.internal.scaleFactor;
+          linesSinceParagraphStart = 0;
         }
 
         if (y > 275) { // Evita sobrepor o rodapé
@@ -287,7 +290,7 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
           />
         </div>
         <div>
-          <label htmlFor="linesPerParagraph" className="block text-blue-200 text-sm font-semibold mb-2">Linhas por Parágrafo:</label>
+          <label htmlFor="linesPerParagraph" className="block text-blue-200 text-sm font-semibold mb-2">Linhas mínimas por Parágrafo <span className="font-normal text-blue-300">(quebra só no fim de uma frase)</span>:</label>
           <input
             type="number"
             id="linesPerParagraph"

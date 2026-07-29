@@ -32,7 +32,8 @@ Regras obrigatórias:
 - Traduza o texto INTEIRO, do início ao fim, mesmo que pareça repetitivo, incompleto ou fora de contexto (é um trecho de um texto maior).
 - Nunca devolva nenhuma frase ou trecho no idioma original — se alguma parte já parecer estar em ${targetLanguage}, ainda assim revise e devolva a tradução completa.
 - Forneça apenas a tradução direta, sem explicações, comentários ou texto extra.
-- Preserve fielmente a pontuação original (vírgulas, pontos, interrogações, travessões, reticências).
+- O texto de origem é uma transcrição literal de fala, cheia de frases curtas e fragmentadas (típico de transcrição, não de escrita). Ao traduzir, una frases curtas relacionadas em sentenças mais fluidas, usando vírgulas e conectivos apropriados do português, sempre que isso melhorar a leitura — sem nunca mudar o sentido, resumir ou adicionar conteúdo que não esteja no original.
+- Use pontuação natural do português: evite terminar frases muito curtas com ponto final quando elas fazem parte da mesma ideia; prefira vírgulas, dois-pontos ou ponto e vírgula quando apropriado.
 - Se houver marcadores "***" no texto, copie-os exatamente como estão, sem traduzir, remover ou substituir por aspas ou qualquer outro símbolo.
 - Não inclua as tags <texto> na resposta, apenas a tradução.
 
