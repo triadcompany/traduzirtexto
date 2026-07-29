@@ -96,7 +96,8 @@ const PdfGenerator: React.FC<PdfGeneratorProps> = ({ initialText }) => {
 
     // Regex melhorada: suporte a livros com números (1 João), abreviações e intervalos de versículos
     // [a-záàâãéêíóôõúüç]* completa o nome do livro, incluindo acentos (ex: "Jos" -> "Josué", "Deu" -> "Deuteronômio")
-    const BIBLE_BOOKS = '(?:[123]\\s?)?(?:Gen|Exo|Lev|Num|Deu|Jos|Judg|Ruth|Sam|Kings|Chron|Ezra|Neh|Esth|Job|Psa|Prov|Eccl|Song|Isa|Jer|Lam|Eze|Dan|Hos|Joel|Amos|Oba|Jon|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phi|Col|Thess|Tim|Tit|Phile|Heb|James|Pet|Jude|Rev|Gên|Êxo|Lev|Núm|Deu|Jos|Juí|Rut|Sam|Reis|Crô|Esd|Nee|Est|Jó|Sal|Pro|Ecl|Cân|Isa|Jer|Lam|Eze|Dan|Osé|Joe|Amó|Oba|Jon|Miq|Nau|Hab|Sof|Age|Zac|Mal|Mat|Mar|Luc|João|Ato|Rom|Cor|Gál|Efi|Fil|Col|Tes|Tim|Tit|Fil|Heb|Tia|Ped|Jud|Apo)[a-záàâãéêíóôõúüç]*';
+    // Deu(?!s\b): evita bater com a palavra comum "Deus" (Deuteronômio nunca é escrito assim)
+    const BIBLE_BOOKS = '(?:[123]\\s?)?(?:Gen|Exo|Lev|Num|Deu(?!s\\b)|Jos|Judg|Ruth|Sam|Kings|Chron|Ezra|Neh|Esth|Job|Psa|Prov|Eccl|Song|Isa|Jer|Lam|Eze|Dan|Hos|Joel|Amos|Oba|Jon|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mark|Luke|John|Acts|Rom|Cor|Gal|Eph|Phi|Col|Thess|Tim|Tit|Phile|Heb|James|Pet|Jude|Rev|Gên|Êxo|Lev|Núm|Deu(?!s\\b)|Jos|Juí|Rut|Sam|Reis|Crô|Esd|Nee|Est|Jó|Sal|Pro|Ecl|Cân|Cant|Isa|Jer|Lam|Eze|Dan|Osé|Ose|Joe|Amó|Oba|Jon|Miq|Nau|Hab|Sof|Age|Zac|Mal|Mat|Mar|Luc|João|Ato|Rom|Cor|Gál|Efé|Fil|Col|Tes|Tim|Tit|Fil|Heb|Tia|Ped|Jud|Apo)[a-záàâãéêíóôõúüç]*';
     // Palavras usadas em citações por extenso: "capítulo"/"cap." e "versículo"/"verso"/"v."
     const CHAPTER_WORD = '(?:cap(?:í|i)tulo|cap\\.)';
     const VERSE_WORD = '(?:vers(?:í|i)culo|verso|v\\.)';
